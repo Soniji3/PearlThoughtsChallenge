@@ -2,17 +2,6 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Hospital Appointment Scheduler - README</title>
-<style>
-  body { font-family: Arial, sans-serif; line-height: 1.6; padding: 20px; background: #f9f9f9; }
-  h1, h2, h3 { color: #1f2937; }
-  code { background: #e5e7eb; padding: 2px 4px; border-radius: 4px; }
-  pre { background: #e5e7eb; padding: 10px; border-radius: 6px; overflow-x: auto; }
-  a { color: #2563eb; text-decoration: none; }
-  a:hover { text-decoration: underline; }
-  ul { margin-bottom: 15px; }
-  li { margin-bottom: 5px; }
-</style>
 </head>
 <body>
 
