@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Hospital Appointment Scheduler — Demo</title>
+<style>
+  :root{
+    --bg:#f4f6f9; --card:#fff; --muted:#6b7280;
+    --blue:#3b82f6; --green:#10b981; --orange:#f59e0b; --purple:#8b5cf6;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial;background:var(--bg);color:#0f172a}
+  header{background:#0f172a;color:white;padding:16px 20px}
+  header h1{margin:0;font-size:18px}
+  .layout{display:flex;gap:16px;padding:16px;max-width:1200px;margin:18px auto}
+  /* Sidebar */
+  aside.sidebar{width:280px;background:var(--card);padding:16px;border-radius:10px;box-shadow:0 6px 18px rgba(12,20,40,0.06);flex-shrink:0}
+  .doctor-head{display:flex;gap:12px;align-items:center}
+  .doctor-photo{width:68px;height:68px;border-radius:50%;overflow:hidden;flex-shrink:0;border:3px solid #eef2ff}
+  .doctor-photo img{width:100%;height:100%;object-fit:cover;display:block}
+  .doctor-meta h3{margin:0;font-size:16px}
+  .doctor-meta p{margin:4px 0 0 0;color:var(--muted);font-size:13px}
+  .controls{margin-top:14px}
+  label{display:block;font-size:13px;color:var(--muted);margin:8px 0 4px}
+  select,input[type="date"]{width:100%;padding:8px;border-radius:6px;border:1px solid #e6e9ef;background:#fff}
+  .role-row{display:flex;gap:8px;align-items:center;margin-top:10px}
+  .role-row button{padding:8px 10px;border-radius:6px;border:1px solid #d1d5db;background:white;cursor:pointer}
+  .role-row button.active{background:#0f172a;color:white;border-color:#0f172a}
+  .info{margin-top:12px;font-size:13px;color:var(--muted)}
+  /* Main area */
+  main{flex:1}
+  .topbar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px}
+  .top-left h2{margin:0;font-size:18px}
+  .top-left p{margin:4px 0 0;color:var(--muted);font-size:13px}
+  .view-controls{display:flex;gap:8px;align-items:center}
+  .view-controls button{padding:8px 12px;border-radius:8px;border:1px solid #e6e9ef;background:white;cursor:pointer}
+  .view-controls button.active{background:#0f172a;color:white;border-color:#0f172a}
+  .calendar-card{background:var(--card);padding:12px;border-radius:10px;box-shadow:0 6px 18px rgba(12,20,40,0.06)}
+  /* Day view */
+  .day-grid{display:flex}
+  .times{width:70px;border-right:1px solid #eef2f7;padding-right:8px}
+  .times .slot{height:36px;display:flex;align-items:center;color:var(--muted);font-size:13px;padding-left:6px}
+  .slots-area{flex:1;position:relative;padding-left:12px;overflow:auto}
+  .row{height:36px;border-bottom:1px solid #f1f5f9;position:relative}
+  .apt{position:absolute;border-radius:6px;padding:6px;font-size:12px;color:white;box-shadow:0 6px 12px rgba(2,6,23,0.08);overflow:hidden}
+  .apt .title{font-weight:600;margin-bottom:2px}
+  .apt .meta{font-size:11px;opacity:0.9}
+  /* Week view */
+  .week-grid{display:grid;grid-template-columns:70px repeat(7,1fr);gap:0}
+  .week-header{display:contents}
+  .week-header .head{height:48px;display:flex;align-items:center;justify-content:center;border-bottom:1px solid #eef2f7;font-weight:600}
+  .week-times{grid-column:1 / 2}
+  .week-times .slot{height:36px;display:flex;align-items:center;color:var(--muted);font-size:12px;padding-left:8px;border-bottom:1px solid #f8fafc}
+  .week-day-col{min-height:360px;border-left:1px solid #f3f4f6;position:relative}
+  /* small */
+  @media (max-width:900px){
+    .layout{flex-direction:column;padding:12px}
+    aside.sidebar{width:100%}
+    .week-grid{overflow:auto;display:block}
+    .week-grid > *{min-width:100%}
+  }
+  /* colors mapping classes (fallback) */
+  .c-checkup{background:var(--blue)}
+  .c-consultation{background:var(--green)}
+  .c-followup{background:var(--orange)}
+  .c-procedure{background:var(--purple)}
+  .empty{padding:16px;color:var(--muted);text-align:center}
+</style>
+</head>
+<body>
+<header>
+  <h1>Hospital Appointment Scheduler — Frontend Challenge (Demo)</h1>
+</header>
+
+<div class="layout">
+  <aside class="sidebar">
+    <div class="doctor-head">
+      <div class="doctor-photo"><img id="doctorImg" alt="doctor photo" src=""></div>
+      <div class="doctor-meta">
+        <h3 id="docName">All Doctors</h3>
+        <p id="docSpec">Select doctor or view all</p>
+      </div>
+    </div>
+
+    <div class="controls">
+      <label for="roleSelect">Role</label>
+      <div class="role-row">
+        <button id="roleFront" class="active" title="Front Desk">Front Desk</button>
+        <button id="roleDoctor" title="Doctor">Doctor</button>
+      </div>
+
+      <label for="doctorSelect">Doctor</label>
+      <select id="doctorSelect"></select>
+
+      <label for="datePicker">Date</label>
+      <input id="datePicker" type="date">
+
+      <div class="info" id="workingHours"></div>
+    </div>
+  </aside>
+
+  <main>
+    <div class="topbar">
+      <div class="top-left">
+        <h2 id="titleHeader">Schedule</h2>
+        <p id="subHeader">Day view — 8:00 to 18:00</p>
+      </div>
+      <div class="view-controls">
+        <button id="dayViewBtn" class="active">Day View</button>
+        <button id="weekViewBtn">Week View</button>
+      </div>
+    </div>
+
+    <div class="calendar-card" id="calendarContainer">
+      <!-- will render day/week views here -->
+    </div>
+  </main>
+</div>
+
+<script>
+/* -------------------------
+  MOCK DATA GENERATION
+-------------------------*/
+const DOCTORS = [
+  { id: 'd1', name: 'Dr. Sarah Chen', specialty: 'Cardiology', hours: { start: '08:00', end: '17:00' }, photo: 'https://as1.ftcdn.net/v2/jpg/15/75/74/64/1000_F_1575746445_1jv0HjVYKFvTHhCIO9a9vE916X87wdDS.jpg' },
+  { id: 'd2', name: 'Dr. Mira Patel', specialty: 'Orthopedics', hours: { start: '09:00', end: '18:00' }, photo: 'https://as1.ftcdn.net/v2/jpg/15/75/74/62/1000_F_1575746216_ZS5ovZG1rHulQUatTq0WVno9BGInMCwW.jpg' },
+  { id: 'd3', name: 'Dr. Ananya Verma', specialty: 'Pediatrics', hours: { start: '08:30', end: '16:30' }, photo: 'https://as1.ftcdn.net/v2/jpg/15/75/74/58/1000_F_1575745808_mHgDbYfvhYH3dx0WmW7J3SjULUnwZhew.jpg' },
+];
+
+const APPT_TYPES = ['Checkup','Consultation','Follow-up','Procedure'];
+const TYPE_COLOR = { 'Checkup':'c-checkup', 'Consultation':'c-consultation', 'Follow-up':'c-followup', 'Procedure':'c-procedure' };
+
+/* generate 50 patients */
+const PATIENTS = Array.from({length:50}).map((_,i)=>({ id:'p'+(i+1), name: ['Amit','Neha','Rahul','Priya','Aisha','John','Jane','Carlos','Lina','Omar'][i%10] + ' ' + (i+1)}));
+
+/* helper: random int */
+function randInt(a,b){ return Math.floor(Math.random()*(b-a+1))+a; }
+
+/* generate appointments across current week for doctors */
+function getStartOfWeek(date = new Date()){
+  const d = new Date(date);
+  const day = d.getDay(); // 0 Sun .. 6 Sat
+  const diff = (day === 0 ? -6 : 1 - day); // make Monday start
+  d.setDate(d.getDate() + diff);
+  d.setHours(0,0,0,0);
+  return d;
+}
+const weekStart = getStartOfWeek();
+const APPOINTMENTS = [];
+// create random appointments for 7 days, each doctor ~10-15 appts
+DOCTORS.forEach(doc=>{
+  for(let i=0;i<12;i++){
+    const dayOffset = randInt(0,6);
+    const duration = [30,30,30,60,60,90][randInt(0,5)];
+    // doctor working hours in minutes
+    const [hs, ms] = doc.hours.start.split(':').map(Number);
+    const [he, me] = doc.hours.end.split(':').map(Number);
+    const startMin = hs*60; const endMin = he*60;
+    const startSlot = randInt(startMin, Math.max(startMin, endMin - duration));
+    const apptDay = new Date(weekStart); apptDay.setDate(weekStart.getDate()+dayOffset);
+    const s = new Date(apptDay); s.setHours(0,0,0,0); s.setMinutes(startSlot);
+    const e = new Date(s.getTime() + duration*60000);
+    const patient = PATIENTS[randInt(0,PATIENTS.length-1)];
+    const type = APPT_TYPES[randInt(0, APPT_TYPES.length-1)];
+    APPOINTMENTS.push({ id: 'a_'+doc.id+'_'+i+'_'+dayOffset, doctorId:doc.id, patientId:patient.id, patientName:patient.name, start: s.toISOString(), end: e.toISOString(), type });
+  }
+});
+
+/* -------------------------
+  UTILITIES: date/time math
+-------------------------*/
+function parseISO(s){ return new Date(s); }
+function formatHM(date){ return date.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}); }
+function formatDateLong(d){ return d.toLocaleDateString([], {weekday:'short',month:'short',day:'numeric'}); }
+function sameDay(a,b){ const A=new Date(a); const B=new Date(b); return A.getFullYear()===B.getFullYear() && A.getMonth()===B.getMonth() && A.getDate()===B.getDate(); }
+function toYMD(date){ const d=new Date(date); return d.toISOString().slice(0,10); }
+
+/* time-to-minutes since 00:00 of that day */
+function minutesSinceStartOfDay(date){ const d=new Date(date); return d.getHours()*60 + d.getMinutes(); }
+
+/* -------------------------
+  APP STATE & UI binding
+-------------------------*/
+const doctorSelect = document.getElementById('doctorSelect');
+const datePicker = document.getElementById('datePicker');
+const docImg = document.getElementById('doctorImg');
+const docNameEl = document.getElementById('docName');
+const docSpec = document.getElementById('docSpec');
+const workingHoursEl = document.getElementById('workingHours');
+const calendarContainer = document.getElementById('calendarContainer');
+const titleHeader = document.getElementById('titleHeader');
+const subHeader = document.getElementById('subHeader');
+const dayViewBtn = document.getElementById('dayViewBtn');
+const weekViewBtn = document.getElementById('weekViewBtn');
+const roleFront = document.getElementById('roleFront');
+const roleDoctor = document.getElementById('roleDoctor');
+
+let role = 'front'; // 'front' or 'doctor'
+let currentView = 'day'; // 'day' or 'week'
+let selectedDoctorId = 'all';
+let currentDate = new Date();
+
+/* populate doctors select */
+function populateDoctors(){
+  doctorSelect.innerHTML = '<option value="all">All Doctors</option>';
+  DOCTORS.forEach(d => {
+    const opt = document.createElement('option');
+    opt.value = d.id; opt.textContent = d.name + ' — ' + d.specialty;
+    doctorSelect.appendChild(opt);
+  });
+}
+
+/* init date to today */
+datePicker.value = toYMD(currentDate);
+
+/* load sidebar info */
+function updateSidebar(){
+  if(selectedDoctorId === 'all'){ docImg.src = ''; docImg.style.display='none'; docNameEl.textContent='All Doctors'; docSpec.textContent='Select a doctor or view all'; workingHoursEl.textContent=''; }
+  else {
+    const d = DOCTORS.find(x=>x.id===selectedDoctorId);
+    if(d){
+      docImg.src = d.photo; docImg.style.display='block'; docNameEl.textContent = d.name; docSpec.textContent = d.specialty;
+      workingHoursEl.textContent = `Working hours: ${d.hours.start} — ${d.hours.end}`;
+    }
+  }
+}
+
+/* view switch handlers */
+dayViewBtn.addEventListener('click', ()=>{ currentView='day'; dayViewBtn.classList.add('active'); weekViewBtn.classList.remove('active'); renderCalendar(); subHeader.textContent='Day view — 8:00 to 18:00'; });
+weekViewBtn.addEventListener('click', ()=>{ currentView='week'; weekViewBtn.classList.add('active'); dayViewBtn.classList.remove('active'); renderCalendar(); subHeader.textContent='Week view — Mon to Sun, 8:00 to 18:00'; });
+
+roleFront.addEventListener('click', ()=>{ role='front'; roleFront.classList.add('active'); roleDoctor.classList.remove('active'); selectedDoctorId='all'; doctorSelect.value='all'; updateSidebar(); renderCalendar(); });
+roleDoctor.addEventListener('click', ()=>{ role='doctor'; roleDoctor.classList.add('active'); roleFront.classList.remove('active'); /* simulate doctor login by picking first doctor */ selectedDoctorId = DOCTORS[0].id; doctorSelect.value = selectedDoctorId; updateSidebar(); renderCalendar(); });
+
+doctorSelect.addEventListener('change', (e)=>{ selectedDoctorId = e.target.value; updateSidebar(); renderCalendar(); });
+datePicker.addEventListener('change', (e)=>{ currentDate = new Date(e.target.value); renderCalendar(); updateSidebar(); });
+
+populateDoctors();
+updateSidebar();
+
+/* -------------------------
+  APPOINTMENT FILTERS / LAYOUT
+-------------------------*/
+const SLOT_MIN = 30;
+const DAY_START = 8*60; // minutes
+const DAY_END = 18*60;  // minutes
+const ROW_HEIGHT = 36; // px per 30 min
+
+function getAppointmentsForDay(doctorId, date){
+  // returns appointments (parsed) for that doctor on that date
+  const dateStr = toYMD(date);
+  return APPOINTMENTS.filter(a => {
+    const start = new Date(a.start);
+    // if doctor filter
+    if(doctorId !== 'all' && a.doctorId !== doctorId) return false;
+    return toYMD(start) === dateStr;
+  }).map(a => ({...a, startDate: new Date(a.start), endDate: new Date(a.end)}));
+}
+
+function getAppointmentsForWeek(doctorId, anyDate){
+  const start = getStartOfWeek(anyDate);
+  const end = new Date(start); end.setDate(start.getDate()+7);
+  return APPOINTMENTS.filter(a => {
+    const s = new Date(a.start);
+    if(doctorId !== 'all' && a.doctorId !== doctorId) return false;
+    return s >= start && s < end;
+  }).map(a => ({...a, startDate: new Date(a.start), endDate: new Date(a.end)}));
+}
+
+/* collision detection and column assignment for a set of appts (same day)
+   returns list with { colIndex, colCount } to place side-by-side
+*/
+function assignColumns(appts){
+  // sort by start time
+  const items = appts.map((a, idx)=> ({...a, idx})).sort((x,y)=> x.startDate - y.startDate);
+  const columns = []; // each column holds last end time
+  const placements = new Array(items.length);
+  items.forEach(item=>{
+    // find first column where item.start >= columnEnd
+    let placed = false;
+    for(let c=0;c<columns.length;c++){
+      if(item.startDate >= columns[c]){
+        // place here
+        placements[item.idx] = { col: c };
+        columns[c] = item.endDate;
+        placed = true;
+        break;
+      }
+    }
+    if(!placed){
+      placements[item.idx] = { col: columns.length };
+      columns.push(item.endDate);
+    }
+  });
+  // all columns length = columns.length
+  return placements.map((p, i)=> ({...appts[i], colIndex:p.col, colCount:columns.length }));
+}
+
+/* for overlapping columns we need more robust grouping:
+   We'll compute overlapping groups (interval graph) and within each group compute columns.
+*/
+function layoutColumns(appts){
+  const list = appts.map((a,i)=>({a, i}));
+  const groups = [];
+  while(list.length){
+    const {a,i} = list.shift();
+    const group = [ {a,i} ];
+    // check others overlapping group
+    let changed = true;
+    while(changed){
+      changed = false;
+      for(let j=list.length-1;j>=0;j--){
+        const candidate = list[j];
+        if(group.some(g => (new Date(g.a.start) < new Date(candidate.a.end) && new Date(candidate.a.start) < new Date(g.a.end)))){
+          group.push(candidate);
+          list.splice(j,1);
+          changed = true;
+        }
+      }
+    }
+    groups.push(group);
+  }
+  // now assign columns per group
+  const results = [];
+  groups.forEach(group=>{
+    // sort group by start
+    const sorted = group.sort((x,y)=> new Date(x.a.start) - new Date(y.a.start));
+    const cols = []; // end times
+    sorted.forEach(item=>{
+      let placed=false;
+      for(let c=0;c<cols.length;c++){
+        if(new Date(item.a.start) >= cols[c]){
+          results[item.i] = { ...item.a, colIndex: c, colCount: cols.length };
+          cols[c] = new Date(item.a.end);
+          placed=true; break;
+        }
+      }
+      if(!placed){
+        results[item.i] = { ...item.a, colIndex: cols.length, colCount: cols.length+1 };
+        cols.push(new Date(item.a.end));
+      }
+    });
+    // after full assignment, some earlier assigned had colCount smaller than final cols.length
+    // adjust colCount for all in this group
+    const finalCols = cols.length;
+    group.forEach(it => {
+      results[it.i].colCount = finalCols;
+    });
+  });
+  // results indexed by original appts array order; map to array
+  return appts.map((_, idx) => results[idx]);
+}
+
+/* -------------------------
+  RENDERERS
+-------------------------*/
+function clear(container){ container.innerHTML=''; }
+
+/* DAY VIEW: absolute positioned appointment blocks in a vertical scroll */
+function renderDayView(date){
+  clear(calendarContainer);
+  const header = document.createElement('div');
+  header.style.display='flex'; header.style.justifyContent='space-between'; header.style.alignItems='center'; header.style.marginBottom='8px';
+  const title = document.createElement('div'); title.textContent = formatDateLong(date); title.style.fontWeight='600';
+  const note = document.createElement('div'); note.style.color='var(--muted)'; note.textContent = selectedDoctorId === 'all' ? 'Showing all doctors' : (DOCTORS.find(d=>d.id===selectedDoctorId).name);
+  header.appendChild(title); header.appendChild(note);
+  calendarContainer.appendChild(header);
+
+  const grid = document.createElement('div'); grid.className='day-grid'; grid.style.display='flex';
+  const timesCol = document.createElement('div'); timesCol.className='times';
+  const slotsArea = document.createElement('div'); slotsArea.className='slots-area';
+  // generate 30-min slots 8:00 to 18:00
+  for(let t = DAY_START; t < DAY_END; t += SLOT_MIN){
+    const r = document.createElement('div'); r.className='slot'; r.style.height = ROW_HEIGHT+'px';
+    const hh = Math.floor(t/60); const mm = t%60;
+    const label = document.createElement('div'); label.textContent = `${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}`; r.appendChild(label);
+    timesCol.appendChild(r);
+    // placeholder rows
+    const row = document.createElement('div'); row.className='row'; slotsArea.appendChild(row);
+  }
+  grid.appendChild(timesCol); grid.appendChild(slotsArea);
+  calendarContainer.appendChild(grid);
+
+  // fetch appointments for day
+  const appts = getAppointmentsForDay(selectedDoctorId, date);
+  if(appts.length === 0){
+    const e = document.createElement('div'); e.className='empty'; e.textContent='No appointments for this date'; calendarContainer.appendChild(e); return;
+  }
+  // compute layout (columns) per overlapping groups
+  const laid = layoutColumns(appts);
+
+  // add appointment elements
+  laid.forEach(a => {
+    const sMin = minutesSinceStartOfDay(a.startDate);
+    const eMin = minutesSinceStartOfDay(a.endDate);
+    // clamp to day range
+    const topMin = Math.max(sMin, DAY_START);
+    const bottomMin = Math.min(eMin, DAY_END);
+    if(bottomMin <= topMin) return;
+    const topPx = ((topMin - DAY_START) / SLOT_MIN) * ROW_HEIGHT;
+    const heightPx = ((bottomMin - topMin) / SLOT_MIN) * ROW_HEIGHT;
+
+    // compute horizontal placement based on column index and count
+    const totalCols = a.colCount || 1;
+    const col = a.colIndex || 0;
+    const gap = 6;
+    const containerPaddingLeft = 12;
+    const availableWidth = slotsArea.clientWidth - (containerPaddingLeft + 16);
+    const widthPer = Math.max(80, (availableWidth - (totalCols-1)*gap) / totalCols);
+    const left = containerPaddingLeft + col*(widthPer + gap);
+
+    const el = document.createElement('div');
+    el.className = 'apt ' + (TYPE_COLOR[a.type] || '');
+    el.style.top = (topPx) + 'px';
+    el.style.left = left + 'px';
+    el.style.width = widthPer + 'px';
+    el.style.height = Math.max(26, heightPx - 4) + 'px';
+    el.style.background = getColorForType(a.type);
+    el.innerHTML = `<div class="title">${a.patientName}</div><div class="meta">${a.type} • ${formatHM(a.startDate)} - ${formatHM(a.endDate)}</div>`;
+    slotsArea.appendChild(el);
+  });
+}
+
+/* WEEK VIEW: grid with 7 day columns and time rows */
+function renderWeekView(anyDate){
+  clear(calendarContainer);
+  const start = getStartOfWeek(anyDate);
+  const headerRow = document.createElement('div'); headerRow.className='week-grid';
+  // header
+  const emptyHead = document.createElement('div'); emptyHead.className='head'; emptyHead.style.display='flex'; emptyHead.style.alignItems='center'; emptyHead.style.justifyContent='center'; emptyHead.textContent='Time';
+  headerRow.appendChild(emptyHead);
+  for(let d=0;d<7;d++){
+    const day = new Date(start); day.setDate(start.getDate()+d);
+    const h = document.createElement('div'); h.className='head'; h.textContent = `${day.toLocaleDateString([], {weekday:'short'})} ${day.getDate()}`; headerRow.appendChild(h);
+  }
+  calendarContainer.appendChild(headerRow);
+
+  // body grid container
+  const bodyGrid = document.createElement('div'); bodyGrid.className='week-grid'; bodyGrid.style.gridTemplateColumns = '70px repeat(7,1fr)'; bodyGrid.style.marginTop='8px';
+  // left column times
+  for(let t=DAY_START;t<DAY_END;t+=SLOT_MIN){
+    const td = document.createElement('div'); td.className='week-times'; td.style.gridColumn = '1/2';
+    const slot = document.createElement('div'); slot.className='slot'; slot.textContent = `${String(Math.floor(t/60)).padStart(2,'0')}:${String(t%60).padStart(2,'0')}`;
+    td.appendChild(slot); bodyGrid.appendChild(td);
+  }
+  // create 7 columns of day area (stacked rows)
+  for(let day=0; day<7; day++){
+    const col = document.createElement('div'); col.className='week-day-col';
+    // create rows
+    for(let t=DAY_START;t<DAY_END;t+=SLOT_MIN){
+      const cell = document.createElement('div'); cell.style.height = ROW_HEIGHT+'px'; cell.style.borderBottom = '1px solid #f8fafc';
+      col.appendChild(cell);
+    }
+    bodyGrid.appendChild(col);
+  }
+  calendarContainer.appendChild(bodyGrid);
+
+  // place appointments
+  const appts = getAppointmentsForWeek(selectedDoctorId, anyDate);
+  if(appts.length === 0){
+    const e = document.createElement('div'); e.className='empty'; e.textContent='No appointments this week'; calendarContainer.appendChild(e); return;
+  }
+  // group appointments by day and process each day for column layout
+  const byDay = {};
+  appts.forEach(a => {
+    const dayKey = toYMD(a.startDate);
+    byDay[dayKey] = byDay[dayKey] || [];
+    byDay[dayKey].push(a);
+  });
+
+  // for each day: compute columns and render
+  for(let d=0; d<7; d++){
+    const day = new Date(start); day.setDate(start.getDate()+d);
+    const key = toYMD(day);
+    const list = byDay[key] || [];
+    if(list.length === 0) continue;
+    // assign columns using layoutColumns (works for single day subset)
+    const laid = layoutColumns(list);
+    // container column index in DOM: day columns are appended after the time column; find that element
+    const colEl = calendarContainer.querySelectorAll('.week-day-col')[d];
+    laid.forEach(a=>{
+      // compute top and height
+      const sMin = minutesSinceStartOfDay(a.startDate);
+      const eMin = minutesSinceStartOfDay(a.endDate);
+      const topMin = Math.max(sMin, DAY_START), bottomMin = Math.min(eMin, DAY_END);
+      if(bottomMin <= topMin) return;
+      const topPx = ((topMin - DAY_START) / SLOT_MIN) * ROW_HEIGHT;
+      const heightPx = ((bottomMin - topMin) / SLOT_MIN) * ROW_HEIGHT;
+      const totalCols = a.colCount || 1; const colIndex = a.colIndex || 0;
+      const gap = 6;
+      const containerW = colEl.clientWidth || (colEl.getBoundingClientRect().width || 120);
+      const widthPer = Math.max(60, (containerW - (totalCols-1)*gap) / totalCols);
+      const left = colIndex * (widthPer + gap);
+
+      const el = document.createElement('div');
+      el.className = 'apt';
+      el.style.position = 'absolute';
+      el.style.top = topPx + 'px';
+      el.style.left = left + 'px';
+      el.style.width = widthPer + 'px';
+      el.style.height = Math.max(24, heightPx - 4) + 'px';
+      el.style.background = getColorForType(a.type);
+      el.innerHTML = `<div class="title">${a.patientName}</div><div class="meta">${a.type} • ${formatHM(a.startDate)}</div>`;
+      // place inside relative container
+      // ensure colEl is positioned relative
+      colEl.style.position='relative';
+      colEl.appendChild(el);
+    });
+  }
+}
+
+/* helper: get color string for type */
+function getColorForType(type){
+  switch(type){
+    case 'Checkup': return 'linear-gradient(90deg,var(--blue), #2f7be0)';
+    case 'Consultation': return 'linear-gradient(90deg,var(--green), #0fae71)';
+    case 'Follow-up': return 'linear-gradient(90deg,var(--orange), #e08a00)';
+    case 'Procedure': return 'linear-gradient(90deg,var(--purple), #6b46d4)';
+    default: return 'gray';
+  }
+}
+
+/* main render selection */
+function renderCalendar(){
+  if(currentView === 'day'){
+    renderDayView(currentDate);
+  } else {
+    renderWeekView(currentDate);
+  }
+}
+
+/* initial render */
+renderCalendar();
+
+/* expose for debugging */
+window._demo = { DOCTORS, APPOINTMENTS, PATIENTS, renderCalendar };
+
+</script>
+</body>
+</html>
